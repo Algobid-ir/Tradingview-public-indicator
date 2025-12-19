@@ -1,0 +1,179 @@
+//@version=5
+indicator(title="HMACross|Algobid", shorttitle="HMACross|Algobid", overlay=true)
+
+// inputs
+lenghHMA = input.int(defval=100 , title="HMA Lengh", minval=1, group='HMA')
+noRepaint = input.bool(defval=true , title="No Repaint?"         , group='TimeFrames')
+waitClose = input.bool(defval=false, title="Wait for close?"     , group='TimeFrames')
+tf1       = input.int(defval=1    , title="Timeframe1", minval=1, group='TimeFrames')
+tf2       = input.int(defval=10   , title="Timeframe2", minval=1, group='TimeFrames')
+tf3       = input.int(defval=15   , title="Timeframe3", minval=1, group='TimeFrames')
+tf4       = input.int(defval=30   , title="Timeframe4", minval=1, group='TimeFrames')
+
+useADX    = input.bool(defval=true, title="Use ADX?"               , group='ADX')
+lenghADX  = input.int(defval=40   , title="ADX Lengh"    , minval=1, group='ADX')
+smoothADX = input.int(defval=40   , title="ADX Smoothing", minval=1, group='ADX')
+
+// --- New Customization Inputs ---
+hmaColorUp = input.color(#00ff00, "HMA Rising Color", group='Visuals')
+hmaColorDn = input.color(#FF0000, "HMA Falling Color", group='Visuals')
+sigColorUp = input.color(color.green, "Signal Up Color", group='Visuals')
+sigColorDn = input.color(color.red,   "Signal Down Color", group='Visuals')
+// -------------------------------
+
+clr1 = #00ff00
+clr2 = #FF0000
+clr3 = #FF7F00
+clr4 = #008000
+
+// Logics Candle Color Plot 1
+close1 = 0.0
+close2 = 0.0
+close3 = 0.0
+close4 = 0.0
+open1  = 0.0
+open2  = 0.0
+open3  = 0.0
+open4  = 0.0
+
+closed1 = 0.0
+closed2 = 0.0
+closed3 = 0.0
+closed4 = 0.0
+opened1  = 0.0
+opened2  = 0.0
+opened3  = 0.0
+opened4  = 0.0
+
+closing1 = 0.0
+closing2 = 0.0
+closing3 = 0.0
+closing4 = 0.0
+opening1  = 0.0
+opening2  = 0.0
+opening3  = 0.0
+opening4  = 0.0
+
+
+closed1 := request.security(syminfo.tickerid, str.tostring(tf1), close[0], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+closed2 := request.security(syminfo.tickerid, str.tostring(tf2), close[0], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+closed3 := request.security(syminfo.tickerid, str.tostring(tf3), close[0], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+closed4 := request.security(syminfo.tickerid, str.tostring(tf4), close[0], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+opened1 := request.security(syminfo.tickerid, str.tostring(tf1),  open[0], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+opened2 := request.security(syminfo.tickerid, str.tostring(tf2),  open[0], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+opened3 := request.security(syminfo.tickerid, str.tostring(tf3),  open[0], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+opened4 := request.security(syminfo.tickerid, str.tostring(tf4),  open[0], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+
+closing1 := request.security(syminfo.tickerid, str.tostring(tf1), close[0], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+closing2 := request.security(syminfo.tickerid, str.tostring(tf2), close[0], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+closing3 := request.security(syminfo.tickerid, str.tostring(tf3), close[0], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+closing4 := request.security(syminfo.tickerid, str.tostring(tf4), close[0], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+opening1 := request.security(syminfo.tickerid, str.tostring(tf1),  open[0], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+opening2 := request.security(syminfo.tickerid, str.tostring(tf2),  open[0], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+opening3 := request.security(syminfo.tickerid, str.tostring(tf3),  open[0], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+opening4 := request.security(syminfo.tickerid, str.tostring(tf4),  open[0], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+
+
+if (waitClose)
+    close1 := closed1
+    close2 := closed2
+    close3 := closed3
+    close4 := closed4
+    open1  := opened1
+    open2  := opened2
+    open3  := opened3
+    open4  := opened4
+else
+    close1 := closing1
+    close2 := closing2
+    close3 := closing3
+    close4 := closing4
+    open1  := opening1
+    open2  := opening2
+    open3  := opening3
+    open4  := opening4
+
+
+if (noRepaint)
+    close1 := close1
+    close2 := close1
+    close3 := close1
+    close4 := close1
+
+
+isCandleGreen = ((open1<close1) and (open2<close2) and (open3<close3) and (open4<close4))
+isCandleRed   = ((open1>close1) and (open2>close2) and (open3>close3) and (open4>close4))
+
+
+barcolor(isCandleGreen ? clr1 : (isCandleRed ? clr2 : na))
+
+//Logics HMA Cross
+hmaOpen  = ta.hma(open , lenghHMA)
+hmaClose = ta.hma(close, lenghHMA)
+
+isCrossUpHMA = ta.crossover(hmaOpen , hmaClose)
+isCrossDnHMA = ta.crossunder(hmaOpen, hmaClose)
+
+isBuyLongSignal   = (isCrossDnHMA and isCandleGreen)
+isSellShortSignal = (isCrossUpHMA and isCandleRed)
+
+// Applied Custom HMA Colors
+plot(hmaOpen ,title="HMA (Open)" , color=((ta.rising(hmaOpen, 1))  ? hmaColorUp : hmaColorDn))
+plot(hmaClose,title="HMA (Close)", color=((ta.rising(hmaClose, 1)) ? hmaColorUp : hmaColorDn))
+
+// Logics ADX
+[adP, adN, adX] = ta.dmi(lenghADX, smoothADX)
+
+adxCrossUp = ta.crossover(adP , adN)
+adxCrossDn = ta.crossunder(adP, adN)
+
+var holderSignalP = 0
+var holderSignalN = 0
+if (isCrossDnHMA)
+    holderSignalP := +1
+    holderSignalN := 0
+else if (isCrossUpHMA)
+    holderSignalP := 0
+    holderSignalN := -1
+
+
+holderADP = 0
+holderADN = 0
+if (adxCrossUp)
+    holderADP := +1
+    holderADN := 0
+else if (adxCrossDn)
+    holderADP := 0
+    holderADN := -1
+
+finalUp = false
+finalDn = false
+
+if (useADX==false)
+    finalUp := isBuyLongSignal
+    finalDn := isSellShortSignal
+else if (holderSignalP==+1 and holderADP==+1)
+    finalUp := true
+    holderSignalP := 0
+    holderSignalN := 0
+    holderADP := 0
+    holderADN := 0
+else if (holderSignalN==-1 and holderADN==-1)
+    finalDn := true
+    holderSignalP := 0
+    holderSignalN := 0
+    holderADP := 0
+    holderADN := 0
+
+//Logics Candle Color Plot 2
+f_kc(src, length, mult) =>
+    ma      = ta.sma(src, length)
+    rangema = ta.atr(10)
+    upper   = ma + rangema * mult
+    lower   = ma - rangema * mult
+    [ma, upper, lower]
+
+// Finalizing - Updated with Custom Size and Color Logic
+// Since size must be constant, we use conditional plotting based on user selection
+plotshape(finalUp, title="Buy Signal",   location=location.belowbar, style=shape.labelup, size=size.small,   color=sigColorUp)
+plotshape(finalDn, title="Sell Signal",   location=location.abovebar, style=shape.labeldown, size=size.small,   color=sigColorDn)
