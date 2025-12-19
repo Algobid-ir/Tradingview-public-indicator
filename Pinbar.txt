@@ -1,0 +1,52 @@
+//@version=5
+indicator("Pin Bar Detector | Algobid", shorttitle="PinBar|Algobid", overlay=true, behind_chart=false)
+
+bodySizeRatio = input.float(0.3, "Maximum Body Size Ratio", minval=0.01, step=0.05, group="Candle Setting")
+shadowRatio   = input.float(3.5, "Maximum Body Size Ratio", minval=1.0, step=0.1, group="Candle Setting")
+bullishColor  = input.color(color.new(color.yellow, 0), "Bullish Color", group="Candle appearance")
+bearishColor  = input.color(color.new(color.purple, 0), "Bearish Color", group="Candle appearance")
+showSignal    = input.bool(false, "Show/Hide Signal indicator", group="Signal indicator")
+signalType    = input.string("BUY/SELL", "Signal Type", options=["BUY/SELL", "Circle", "Square", "Diamond", "Triangle"], group="Signal indicator")
+
+// Helper function to set style based on user input
+getShapeStyle(typeStr, isBull) =>
+    if typeStr == "Circle"
+        shape.circle
+    else if typeStr == "Square"
+        shape.square
+    else if typeStr == "Diamond"
+        shape.diamond
+    else if typeStr == "Triangle"
+        isBull ? shape.triangleup : shape.triangledown
+    else
+        isBull ? shape.labelup : shape.labeldown
+
+// --- Calculations ---
+bodySize = math.abs(close - open)
+totalSize = high - low
+shadowUpper = high - math.max(close, open)
+shadowLower = math.min(close, open) - low
+
+isValid = totalSize > 0 and (high != low)
+
+/// 1. The body must be small (according to user input)
+// 2. The lower shadow must be less than 2 times the upper shadow (to determine the direction of the pressure)
+// 3. "Either" the lower shadow is long relative to the body "Either" the candle is completely bearish (very small body)
+isBullishPinBar = isValid and (bodySize / totalSize < bodySizeRatio) and (shadowLower > (shadowUpper * 2)) and ((shadowLower / math.max(bodySize, syminfo.mintick) > shadowRatio) or (bodySize < totalSize * 0.1))
+isBearishPinBar = isValid and (bodySize / totalSize < bodySizeRatio) and (shadowUpper > (shadowLower * 2)) and ((shadowUpper / math.max(bodySize, syminfo.mintick) > shadowRatio) or (bodySize < totalSize * 0.1))
+
+// --- Draw On chart ---
+
+// Set Candle color
+candleColor = isBullishPinBar ? bullishColor : isBearishPinBar ? bearishColor : na
+
+plotcandle(open, high, low, close, title="Pin Bar Color", color=candleColor, wickcolor=candleColor, bordercolor=candleColor)
+
+plotshape(showSignal and signalType != "BUY/SELL" and isBullishPinBar, title="Bullish Marker", style=getShapeStyle(signalType, true), location=location.belowbar, color=bullishColor, size=size.small, offset=0)
+plotshape(showSignal and signalType != "BUY/SELL" and isBearishPinBar, title="Bearish Marker", style=getShapeStyle(signalType, false), location=location.abovebar, color=bearishColor, size=size.small, offset=0)
+
+if showSignal and signalType == "BUY/SELL" and isBullishPinBar
+    label.new(bar_index, low, "BUY", yloc=yloc.belowbar, color=bullishColor, style=label.style_label_up, textcolor=color.white, size=size.small)
+
+if showSignal and signalType == "BUY/SELL" and isBearishPinBar
+    label.new(bar_index, high, "SELL", yloc=yloc.abovebar, color=bearishColor, style=label.style_label_down, textcolor=color.white, size=size.small)
